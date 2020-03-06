@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?> 
+<Project Revision="7809">
+<General Name="" StartDateTime="0 0.0" EndDateTime="0 40620.0"/>
+<MetaData>
+ <Description></Description>
+</MetaData>
+<MonitorConfiguration>
+ <Monitor X="0" Y="0" Height="1030" Width="1920"/>
+ <Monitor X="1920" Y="0" Height="1010" Width="1680"/>
+</MonitorConfiguration>
+<StartOptions TimeRatio="1" UseStateTimeRatio="0" SysTimeSynced="0" Paused="0" Looped="0" Minimized="0" Hidden="0" AutoClosed="0"/>
+<TimelineOptions ProjectLocked="1" CursorLocked="0" CursorRatio="0" ViewStart="33282 0.000000" ViewSpan="0" DateFormat="ISODate"/>
+<Sky>
+<Sun>
+  <Prop2d>
+   <Icon Anchor="CENTER" Size="MEDIUM" Opacity="100">
+    <Font Size="MEDIUM" Color="1 1 1"/>
+     <ImageLayer Type="Default"/>
+   </Icon>
+  </Prop2d>
+  <Track Color="0.862745 0.862745 0" PenStyle="SolidLine" PenWidth="2"/>
+  <VisibilityCircle ContourColor="0.501961 0.501961 0" FillColor="0 0 0" FillOpacity="50"/>
+ </Sun>
+ <StarCatalog CatalogMode="Builtin">
+  <Track Color="1 1 1" PenStyle="DotLine" PenWidth="1"/>
+ </StarCatalog> 
+</Sky>
+<ToBeUsedApps>
+ <Application Name="SurfaceView" Id="0" Label="" AutoStarted="1"/>
+</ToBeUsedApps>
+<Entities>
+ <Body Name="Earth" ParentPath="Sol">
+  <Prop2d>
+   <Icon Anchor="CENTER" Size="MEDIUM" Opacity="100">
+    <Font Size="MEDIUM" Color="1 1 1"/>
+    <ImageLayer Type="Default"/>
+   </Icon>
+  </Prop2d>
+  <Track Color="0.727337 1 0" PenStyle="SolidLine" PenWidth="2"/>
+  <VisibilityCircle ContourColor="0.734829 1 0" FillColor="0.867414 1 0.499992" FillOpacity="60"/>
+  <EphemerisMode Mode="Default"/>
+  <Layers>
+   <BuiltinLayer Name="defaultLayer"/>
+  </Layers>
+ </Body>
+</Entities>
+<Events/>
+<AdditionalFiles>
+ <File Name="OUTPUT-03-Mar-2020-23-37-57_OEMVTS.txt"/>
+</AdditionalFiles>
+<States>
+ <Instant Time="33282 0" TimeRatio="1" Label="Initial state">
+  <AppState Id="0"/>
+ </Instant>
+</States>
+</Project>
