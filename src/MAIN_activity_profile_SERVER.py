@@ -1,10 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
-from threading import Timer
-import webbrowser
-
+# In[ ]:
 
 
 import sys
@@ -31,10 +28,15 @@ import numpy as np
 import jupyterlab_dash
 from urllib.parse import quote as urlquote
 from flask import Flask, send_from_directory
+from threading import Timer
+import webbrowser
+import socket
 import os
 #
 clickprev = 1
 nclick_auto_prev = 1
+nclick_trj_prev = 1
+nclick_trj_auto_prev = 1
 t0        = 0
 eclipse   = []
 gen_trj   = True
@@ -44,6 +46,8 @@ coe = {}
 time_plot = []
 init_date = 0;
 mission_time = 0;
+TrajectoryFile = []
+
 #
 fig = make_subplots(rows=2, cols=1, shared_xaxes=True, shared_yaxes=False,vertical_spacing=0.2)
 #
@@ -97,7 +101,9 @@ for i in range(0,n):
 fig.update_shapes(dict(xref='x', yref='y'))
 fig.update_layout(title_text="Activity Profile", title_font_size=30, yaxis_title=" ",xaxis_title= " Elapsed Time (minutes)",title_xanchor='center', title_y= 0.9, title_x=0.5)
 #
-viewer = jupyterlab_dash.AppViewer()
+fig2 = go.Figure(fig) 
+#    
+#viewer = jupyterlab_dash.AppViewer()
 #
 # external JavaScript files
 external_scripts = [
@@ -153,7 +159,7 @@ app.layout = html.Div(className='row', children=[
             [
         dbc.Button('Generate Activity Profile', id='button',n_clicks=0,style={'width': '200px', 'padding': '0px 0% 0px 0%'}),
         dcc.Upload( id='upload-modes',multiple=False,
-        children= ([html.Button('Upload Mode csv', style={'width': '200px', 'padding': '0px 0% 0px 0%'})]))],style={'width': '200px', 'padding': '0px 0% 0px 8%'} ),
+        children= ([html.Button('Upload Mode csv',style={'BackgroundColor':'white','width': '200px', 'padding': '0px 0% 0px 0%'})]))],style={'width': '200px', 'padding': '0px 0% 0px 8%'} ),
                     html.Div(
             [       
         dbc.Button('Generate Trajectory', id='button-trj',n_clicks=0,style={'width': '200px', 'padding': '0px 0% 0px 0%'}),
@@ -161,8 +167,8 @@ app.layout = html.Div(className='row', children=[
         children= ([html.Button('Upload Trajectory OEM File', style={'width': '200px', 'padding': '0px 0% 0px 0%'})]))],style={'width': '200px', 'padding': '0px 0% 0px 9%'} ),      
         html.Div(
             [
-        dbc.Button('Automatic Generation', id='button-trj-auto',n_clicks=0,style={'width': '200px', 'padding': '0px 0% 0px 0%'}),
-        dcc.Input( id='upload-trj-auto', value='Mission_example.json', style={'width': '200px', 'padding': '0px 0% 0px 0%'})],style={'width': '200px', 'padding': '0px 0% 0px 10%'} ),
+        dbc.Button('Automatic Trajectory', id='button-trj-auto',n_clicks=0,style={'width': '200px', 'padding': '0px 0% 0px 0%'}),
+        dbc.Button('Automatic Modes',id='button-mode-auto', n_clicks=0,color="light", style={'width': '200px', 'padding': '0px 0% 0px 0%'})],style={'width': '200px', 'padding': '0px 0% 0px 10%'} ),
         html.Div(
             [
         dbc.Button('Generate VTS Files', id='button-vts',n_clicks=0,style={'width': '200px', 'padding': '0px 0% 0px 0%'}), 
@@ -188,65 +194,77 @@ app.layout = html.Div(className='row', children=[
      Input('upload-modes', 'filename'),
      Input('button', 'n_clicks'),
      Input('demo-dropdown', 'value'),
-     Input('button-trj-auto', 'n_clicks')])
-def display_selected_data(relayoutData,contents, names, nclicks, plotvalue,nclicks_auto):
-        global fig, n
+     Input('button-mode-auto', 'n_clicks'),
+     Input('button-trj', 'n_clicks'),
+     Input('button-trj-auto', 'n_clicks'),
+     Input('upload-trj', 'contents'), 
+     Input('upload-trj', 'filename'),])
+def display_selected_data(relayoutData,contents, names, nclicks, plotvalue,nclicks_auto, nclicks_trj,nclicks_trj_auto, contents2,names2):
+        global fig, n, fig2
         global nclick_auto_prev
+        global nclick_trj_auto_prev
+        global nclick_trj_prev
         global gen_trj_auto
         global modenames
+        global gen_trj
+        global gen_auto
+        global TrajectoryFile
+        global data
         #
-        fig2 = go.Figure(fig) 
         #
+        TrajectoryFile = []
         u = 0;
+        pp =0;
         try : 
-            
             fig.update_layout(relayoutData)
-
             n = len(fig.layout.shapes)
-        
-            fig.update_shapes(dict(y0=1))
-            fig.update_shapes(dict(y1=2))
-                 #
-                 # Check order of figures
-                 #
+
+            #
+            # Check order of figures
+            #
             xx = np.zeros(n)
             for i in range(0,n):
-                    xx[i] =  fig2.layout.shapes[i].x0
-                    indd = np.argsort(xx)   
+                    xx[i] =  fig.layout.shapes[i].x0
+                    indd  = np.argsort(xx)   
 
             tend =  fig2.layout.shapes[n-1].x1    
-                #
-                # Detect if figure have been resized
-                #
-            pp = 0;
+            #
+            # Detect if figure have been resized
+            #
             for i in range(0,n):
-
-                if (not(fig.layout.shapes[indd[i]].x0 == fig2.layout.shapes[indd[i]].x0) and (fig.layout.shapes[indd[i]].x1 == fig2.layout.shapes[indd[i]].x1)) and pp == 0:    
-                         if i > 0:
+                if (not(fig.layout.shapes[indd[i]].x0 == fig2.layout.shapes[indd[i]].x0) and abs(fig.layout.shapes[indd[i]].x1 - fig2.layout.shapes[indd[i]].x1) < 1e-2) and pp == 0:    
+                        if i > 0:
                             fig.layout.shapes[indd[i-1]].x1 = fig.layout.shapes[indd[i]].x0 
                             pp = 1
-                            u = 1
+                            u  = 1
+                        else:
+                            fig.layout.shapes[indd[0]].x0 = 0 
+                            pp = 1
 
-                if (not(fig.layout.shapes[indd[i]].x1 == fig2.layout.shapes[indd[i]].x1) and (fig.layout.shapes[indd[i]].x0 == fig2.layout.shapes[indd[i]].x0)) and pp == 0: 
+                if (not(fig.layout.shapes[indd[i]].x1 == fig2.layout.shapes[indd[i]].x1) and abs(fig.layout.shapes[indd[i]].x0- fig2.layout.shapes[indd[i]].x0)<1e-2) and pp == 0: 
                             if i < n-1:
                                 fig.layout.shapes[indd[i+1]].x0 = fig.layout.shapes[indd[i]].x1
                                 pp = 1
                                 u  = 1
-                # 
-                # Detect horizontal displacement
-                #  
+                            else:
+                                fig.layout.shapes[indd[n-1]].x1 = tend
+                                pp = 1
+                                u  = 1
+            #
+            # Detect horizontal displacement
+            #  
             k = 0; # detect of the shape that has changed has been detected    
             xx = np.zeros(n)
             for i in range(0,n):
-                    xx[i] =  fig2.layout.shapes[i].x0
+                    xx[i] =  fig.layout.shapes[i].x0
 
             indd2 = np.argsort(xx) 
 
             for i in range(0,n):
-                if (not(fig.layout.shapes[indd2[i]].x0 == fig2.layout.shapes[indd2[i]].x0) and not(fig.layout.shapes[indd2[i]].x1 == fig2.layout.shapes[indd2[i]].x1)) and pp==0 :    
+                if (not(fig.layout.shapes[indd2[i]].x0 == fig2.layout.shapes[indd2[i]].x0) and not(fig.layout.shapes[indd2[i]].x1 == fig2.layout.shapes[indd2[i]].x1)) and pp==0 and (fig.layout.shapes[indd2[i]].y1>2.01 or fig.layout.shapes[indd2[i]].y0<0.999 ):      
                         for j in range(0,n-1):
                             if not(indd2[j]==indd2[i]):
-                                if ( (fig.layout.shapes[indd2[i]].x0 < fig2.layout.shapes[indd2[j]].x1) and (fig.layout.shapes[indd2[i]].x1 > fig2.layout.shapes[indd2[j+1]].x0)) and pp==0: 
+                                if ( (fig.layout.shapes[indd2[i]].x0 < fig2.layout.shapes[indd2[j]].x1) and (fig.layout.shapes[indd2[i]].x1 > fig2.layout.shapes[indd2[j+1]].x0)) and pp==0 and (fig.layout.shapes[indd2[i]].y1>2.01 or fig.layout.shapes[indd2[i]].y0<0.999 ):    
                                      #  
                                     fig.layout.shapes[indd2[i]].x0  = fig2.layout.shapes[indd2[j]].x0
                                     fig.layout.shapes[indd2[i]].x1  = fig2.layout.shapes[indd2[j]].x1
@@ -261,10 +279,10 @@ def display_selected_data(relayoutData,contents, names, nclicks, plotvalue,nclic
                                     u = 1
             if k == 0:                            
                     for i in range(0,n):
-                        if (not(fig.layout.shapes[indd2[i]].x0 == fig2.layout.shapes[indd2[i]].x0) and not(fig.layout.shapes[indd2[i]].x1 == fig2.layout.shapes[indd2[i]].x1)) and pp==0 :    
+                        if (not(fig.layout.shapes[indd2[i]].x0 == fig2.layout.shapes[indd2[i]].x0) and not(fig.layout.shapes[indd2[i]].x1 == fig2.layout.shapes[indd2[i]].x1)) and pp==0 and (fig.layout.shapes[indd2[i]].y1>2.01 or fig.layout.shapes[indd2[i]].y0<0.999 ):
                             for j in range(0,n):
                                 if not(indd2[j]==indd2[i]):
-                                    if ( (fig.layout.shapes[indd2[i]].x0 > fig2.layout.shapes[indd2[j]].x0) and (fig.layout.shapes[indd2[i]].x1 < fig2.layout.shapes[indd2[j]].x1)) and pp==0: 
+                                    if ( (fig.layout.shapes[indd2[i]].x0 > fig2.layout.shapes[indd2[j]].x0) and (fig.layout.shapes[indd2[i]].x1 < fig2.layout.shapes[indd2[j]].x1)) and pp==0 and (fig.layout.shapes[indd2[i]].y1>2.01 or fig.layout.shapes[indd2[i]].y0<0.999 ):  
                                         #
                                         fig.layout.shapes[indd2[i]].x0  = fig2.layout.shapes[indd2[j]].x0
                                         fig.layout.shapes[indd2[i]].x1  = fig2.layout.shapes[indd2[j]].x1
@@ -285,24 +303,8 @@ def display_selected_data(relayoutData,contents, names, nclicks, plotvalue,nclic
             for i in range(0,n):
                     xx[i] =  fig.layout.shapes[i].x0
 
-            indd = np.argsort(xx) 
-            #
-            fig.layout.shapes[indd[n-1]].x1 = tend 
-            fig.layout.shapes[indd[0]].x0   = 0
-            fig.update_shapes(dict(y0=1))
-            fig.update_shapes(dict(y0=2))         
+            indd = np.argsort(xx)          
             #  
-            main_activity_profile(plotvalue)
-            #
-            for i in range(0,n):
-                #
-                fig.add_trace(go.Scatter(
-                x= [(fig.layout.shapes[i].x0 + fig.layout.shapes[i].x1)/2.0, (fig.layout.shapes[i].x0 + fig.layout.shapes[i].x1)/2.0] ,
-                y=[1 , 2],
-                hovertemplate = modenames[i],
-                showlegend = False,
-                mode="text"), row=1, col=1)
-            #
             fig.update_yaxes(range=[0, 3], row=1, col=1)
             if 'xaxis.range[0]' in relayoutData:
                 fig['layout']['xaxis']['range'] = [
@@ -322,8 +324,11 @@ def display_selected_data(relayoutData,contents, names, nclicks, plotvalue,nclic
                 relayoutData['xaxis2.range[0]'],
                 relayoutData['xaxis2.range[1]']
                 ]
+            if pp ==0 and k == 0:
+                fig.update_layout(fig2.layout)     
         except:
                 fig.update_yaxes(range=[0, 3], row=1, col=1)
+                
                 if relayoutData:
                     if 'xaxis.range[0]' in relayoutData:
                         fig['layout']['xaxis']['range'] = [
@@ -344,117 +349,158 @@ def display_selected_data(relayoutData,contents, names, nclicks, plotvalue,nclic
                             relayoutData['xaxis2.range[0]'],
                             relayoutData['xaxis2.range[1]']
                             ]
-            
-        if ((contents is not None) and (nclicks is not None)):
-            
-            activity_profile2 = parse_contents(contents, names, 2)
+        try:    
+            if ((contents is not None) and (nclicks is not None)) and pp == 0:
 
-            global clickprev
-            
-            if (clickprev==nclicks):
-                clickprev = clickprev + 1
-                #
-                fig = make_subplots(rows=2, cols=1, shared_xaxes=True, shared_yaxes=False,vertical_spacing=0.2) 
-                fig.update_shapes(dict(xref='x', yref='y'))
-                n   = len(activity_profile2)
-                # Set axes properties
+                activity_profile2 = parse_contents(contents, names, 2)
+
+                global clickprev
+
+                if (clickprev==nclicks):
+                    clickprev = clickprev + 1
+                    #
+                    modenames = dict()
+                    fig = make_subplots(rows=2, cols=1, shared_xaxes=True, shared_yaxes=False,vertical_spacing=0.2) 
+                    fig.update_shapes(dict(xref='x', yref='y'))
+                    n   = len(activity_profile2)
+                    # Set axes properties
+                    for i in range(0,n):
+
+                        fig.add_shape(
+                        # unfilled Rectangle
+                        go.layout.Shape(
+                        type="rect",
+                        x0=activity_profile2[i]['T0'],
+                        y0=1,
+                        x1=activity_profile2[i]['TF'],
+                        y1=2,
+                        line=dict(
+                        color="Black",
+                        width=2,
+                        ),
+                        fillcolor=activity_profile2[i]['Color']
+                        ), row=1, col=1)
+                        
+                        fig.add_trace(go.Scatter(
+                        x= [(activity_profile2[i]['T0'] + activity_profile2[i]['TF'])/2.0, (activity_profile2[i]['T0'] + activity_profile2[i]['TF'])/2.0] ,
+                        y=[1 , 2],
+                        hovertemplate = activity_profile2[i]['Name'],
+                        showlegend = False,
+                        mode="text"
+                        ), row=1, col=1)
+                        modenames[i] = activity_profile2[i]['Name']
+
                 for i in range(0,n):
-     
-                    fig.add_shape(
-                    # unfilled Rectangle
-                    go.layout.Shape(
-                    type="rect",
-                    x0=activity_profile2[i]['T0'],
-                    y0=1,
-                    x1=activity_profile2[i]['TF'],
-                    y1=2,
-                    line=dict(
-                    color="Black",
-                    width=2,
-                    ),
-                    fillcolor=activity_profile2[i]['Color']
-                    ), row=1, col=1)
-                    fig.add_trace(go.Scatter(
-                    x= [(activity_profile2[i]['T0'] + activity_profile2[i]['TF'])/2.0, (activity_profile2[i]['T0'] + activity_profile2[i]['TF'])/2.0] ,
-                    y=[1 , 2],
-                    hovertemplate = activity_profile2[i]['Name'],
-                    showlegend = False,
-                    mode="text"
-                    ), row=1, col=1)
-                    modenames[i] = activity_profile2[i]['Name']
-             
-            
-            main_activity_profile(plotvalue)
-            for i in range(0,n):
-            #
-                fig.add_trace(go.Scatter(
-                x= [(fig.layout.shapes[i].x0 + fig.layout.shapes[i].x1)/2.0, (fig.layout.shapes[i].x0 + fig.layout.shapes[i].x1)/2.0] ,
-                y=[1 , 2],
-                hovertemplate = modenames[i],
-                showlegend = False,
-                mode="text"), row=1, col=1)
-            fig.update_xaxes(range=[0, fig.layout.shapes[n-1].x1], showgrid=True)
-
-            fig.update_layout(title_text="Activity Profile", title_font_size=30, yaxis_title=" ",xaxis_title= " Elapsed Time (minutes)",title_xanchor='center', title_y= 0.9, title_x=0.5)
-            fig.update_yaxes(range=[0, 3], row=1, col=1)
-        for i in range(0,n):   
-                fig.layout.shapes[i].y0 =1
-                fig.layout.shapes[i].y1 =2    
-        fig.update_yaxes(range=[0, 3], row=1, col=1)
-        if relayoutData:
-            if 'xaxis.range[0]' in relayoutData:
-                fig['layout']['xaxis']['range'] = [
-                relayoutData['xaxis.range[0]'],
-                relayoutData['xaxis.range[1]']
-                ]
-
-                fig['layout']['xaxis2']['range'] = [
-                relayoutData['xaxis.range[0]'],
-                relayoutData['xaxis.range[1]']
-                ]
-            if 'xaxis2.range[0]' in relayoutData:
-                    fig['layout']['xaxis']['range'] = [
-                    relayoutData['xaxis2.range[0]'],
-                    relayoutData['xaxis2.range[1]']
-                    ]
-                    fig['layout']['xaxis2']['range'] = [
-                    relayoutData['xaxis2.range[0]'],
-                    relayoutData['xaxis2.range[1]']
-                    ]
-                    
-        if (nclicks_auto is not None) and nclicks_auto == nclick_auto_prev:
-                #
-                nclick_auto_prev = nclick_auto_prev + 1
-                main_activity_profile(plotvalue)
-                gen_trj = True;
-                gen_trj_auto = True;
                 
+                    fig.add_trace(go.Scatter(
+                    x= [(fig.layout.shapes[i].x0 + fig.layout.shapes[i].x1)/2.0, (fig.layout.shapes[i].x0 + fig.layout.shapes[i].x1)/2.0] ,
+                    y=[1 , 2],
+                    hovertemplate = modenames[i],
+                    showlegend = False,
+                    mode="text"), row=1, col=1)
+                fig.update_xaxes(range=[0, fig.layout.shapes[n-1].x1], showgrid=True)
+
+                fig.update_layout(title_text="Activity Profile", title_font_size=30, yaxis_title=" ",xaxis_title= " Elapsed Time (minutes)",title_xanchor='center', title_y= 0.9, title_x=0.5)
+                fig.update_yaxes(range=[0, 3], row=1, col=1)
+            for i in range(0,n):   
+                    fig.layout.shapes[i].y0 =1
+                    fig.layout.shapes[i].y1 =2    
+            fig.update_yaxes(range=[0, 3], row=1, col=1)
+            if relayoutData:
+                if 'xaxis.range[0]' in relayoutData:
+                    fig['layout']['xaxis']['range'] = [
+                    relayoutData['xaxis.range[0]'],
+                    relayoutData['xaxis.range[1]']
+                    ]
+
+                    fig['layout']['xaxis2']['range'] = [
+                    relayoutData['xaxis.range[0]'],
+                    relayoutData['xaxis.range[1]']
+                    ]
+                if 'xaxis2.range[0]' in relayoutData:
+                        fig['layout']['xaxis']['range'] = [
+                        relayoutData['xaxis2.range[0]'],
+                        relayoutData['xaxis2.range[1]']
+                        ]
+                        fig['layout']['xaxis2']['range'] = [
+                        relayoutData['xaxis2.range[0]'],
+                        relayoutData['xaxis2.range[1]']
+                        ]
+            if (contents2 is not None) and (nclicks_trj is not None) and nclicks_trj == nclick_trj_prev:
+                    #
+                    data = parse_contents2(contents2, names2, 2)
+                    TrajectoryFile = "../test/inputs/oem_test.txt"
+                    nclick_trj_prev = nclick_trj_prev + 1
+                    gen_trj = True;
+                    gen_trj_auto = False; 
+                    
+            if (nclicks_auto is not None) and nclicks_auto == nclick_auto_prev:
+                    #
+                    nclick_auto_prev = nclick_auto_prev + 1
+                    gen_trj = False;
+                    gen_trj_auto = True;   
+                    
+            if (nclicks_trj_auto is not None) and nclicks_trj_auto == nclick_trj_auto_prev:
+                    #
+                    TrajectoryFile = []
+                    nclick_trj_auto_prev = nclick_trj_auto_prev + 1
+                    gen_trj = True;
+                    gen_trj_auto = False; 
+        except:
+            if relayoutData:
+                if 'xaxis.range[0]' in relayoutData:
+                    fig['layout']['xaxis']['range'] = [
+                    relayoutData['xaxis.range[0]'],
+                    relayoutData['xaxis.range[1]']
+                    ]
+
+                    fig['layout']['xaxis2']['range'] = [
+                    relayoutData['xaxis.range[0]'],
+                    relayoutData['xaxis.range[1]']
+                    ]
+                if 'xaxis2.range[0]' in relayoutData:
+                        fig['layout']['xaxis']['range'] = [
+                        relayoutData['xaxis2.range[0]'],
+                        relayoutData['xaxis2.range[1]']
+                        ]
+                        fig['layout']['xaxis2']['range'] = [
+                        relayoutData['xaxis2.range[0]'],
+                        relayoutData['xaxis2.range[1]']
+                        ]
+       
+        modenames = main_activity_profile(plotvalue)
+        fig2 = go.Figure(fig) 
         return fig
-    
 #
 # Function that reads the user-provided spacecraft modes in OEM format
 #
 
 def parse_contents(contents, filename, date):
     content_type, content_string = contents.split(',')
-
     decoded = base64.b64decode(content_string)
-    try:
-        # Assume that the user uploaded a cvs file
-        df = modes_wrapper(io.StringIO(decoded.decode('utf-8')))
-        return df
-    except Exception as e:
-        print(e)
-        return html.Div([
-            content_string
-        ])    
-    
+    df = modes_wrapper(io.StringIO(decoded.decode('utf-8')))
+    return df
+
+def parse_contents2(contents, filename, date):
+    content_type, content_string = contents.split(',')
+    decoded = base64.b64decode(content_string)
+    df = traj_wrapper(io.StringIO(decoded.decode('utf-8')))
+    return df
+
+def traj_wrapper(input_file):
+    global t0
+    data2 = np.array(pd.read_csv(input_file, header=None, sep=' '))     
+    time = data2[0:,0] + data2[0:,1]/(3600*24)
+    R    = data2[0:,2:5] 
+    V    = data2[0:,5:9] 
+    t0   = time[0]
+    return time, R, V
+
 def modes_wrapper(input_file):
     global t0
-    
+    #
     data2 = np.array(pd.read_csv(input_file, header=None, sep=' '))
-    
-    #f.close()      
+    #     
     Time   = data2[0:,0] + data2[0:,1]/(3600*24)
     Name   = data2[0:,2:]
     #
@@ -495,15 +541,17 @@ def main_activity_profile(Visualization):
     global modenames
     global n
     global init_date
-    #global modenames
+    global fig
+    global data
     ProjectFile     = "../test/inputs/Mission_example.json"
-    TrajectoryFile  = []
     #
     fig.data = ()
     #
 
     if gen_trj_auto:
         fig.layout.shapes = ()
+        #fig = make_subplots(rows=2, cols=1, shared_xaxes=True, shared_yaxes=False,vertical_spacing=0.2) 
+        fig.update_shapes(dict(xref='x', yref='y'))
         time = (time_plot-time_plot[0])/(24*60)
         #
         # Generar secuencia de eventos
@@ -612,6 +660,7 @@ def main_activity_profile(Visualization):
                         fillcolor='red'
                         ), row=1, col=1)
         modenames = dict()
+        n = len(fig.layout.shapes)
         for i in range(0,n):
             if fig.layout.shapes[i]['fillcolor'] == 'red':
                 modenames[i] = 'Payload'
@@ -619,7 +668,14 @@ def main_activity_profile(Visualization):
                 modenames[i] = 'Eclipse'
             if fig.layout.shapes[i]['fillcolor']== 'blue':
                 modenames[i] = 'Downlink'
-            #            
+        #  
+        for i in range(0,n):
+                    fig.add_trace(go.Scatter(
+                    x= [(fig.layout.shapes[i].x0 + fig.layout.shapes[i].x1)/2.0, (fig.layout.shapes[i].x0 + fig.layout.shapes[i].x1)/2.0] ,
+                    y=[1 , 2],
+                    hovertemplate = modenames[i],
+                    showlegend = False,
+                    mode="text"), row=1, col=1)     
     if gen_trj:
         coe, gs, scmodes, init_date, MissionTime = wp.json_wrapper(ProjectFile)
         t0 = init_date;
@@ -632,7 +688,7 @@ def main_activity_profile(Visualization):
             jd0  = init_date
             time = jd0 + time/(3600*24);
         else:
-            data = wp.oem_wrapper(TrajectoryFile)
+            #data = wp.oem_wrapper(TrajectoryFile)
             time = data[0]
             R    = data[1]
             V    = data[2]
@@ -699,6 +755,7 @@ def main_activity_profile(Visualization):
         #
         # 
     n = len(fig.layout.shapes)  
+
     for i in range(0,n):
             fig.add_trace(go.Scatter(
             x= [(fig.layout.shapes[i].x0 + fig.layout.shapes[i].x1)/2.0, (fig.layout.shapes[i].x0 + fig.layout.shapes[i].x1)/2.0] ,
@@ -706,9 +763,10 @@ def main_activity_profile(Visualization):
             hovertemplate = modenames[i],
             showlegend = False,
             mode="text"), row=1, col=1) 
+
     gen_trj = False            
     gen_trj_auto = False
-    return 0
+    return modenames
 
 @app.callback(Output('download-link','href'),[Input('button-vts', 'n_clicks'),
     Input('name-vts', 'value')])
@@ -862,29 +920,21 @@ def generate_VTS_files(nclicks, filename):
             location = urlquote(path)
     return location   
 
-
 @app.server.route("/test/outputs/<path:path>")
 def download(path):
     root_dir = os.getcwd()
     return send_from_directory(
         os.path.join(root_dir, '../test/outputs'), path)
+    
+#viewer.show(app)
 
-def open_browser(): 
-    webbrowser.open_new("http://localhost:{}".format(8898))
+def open_browser(port):
+    webbrowser.open_new("http://localhost:{}".format(port))
 
 if __name__ == '__main__':
-           Timer(1, open_browser).start();
-           app.run_server(debug=False,port=8898)
 
-
-# In[2]:
-
-
-
-
-
-# In[ ]:
-
-
-
-
+    tcp = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    tcp.bind(('', 0))
+    addr, port2 = tcp.getsockname()
+    Timer(1, open_browser(port2)).start();
+    app.run_server(debug=False,port=port2)
