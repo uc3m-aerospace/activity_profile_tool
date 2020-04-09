@@ -53,13 +53,13 @@ fig = make_subplots(rows=2, cols=1, shared_xaxes=True, shared_yaxes=False,vertic
 #
 # Default activity profile
 #
-activity_profile = [{'Name': 'Eclipse', 'T0': 0, 'TF': 100, 'Color': 'yellow'},
+activity_profile = [{'Name': 'Eclipse', 'T0': 0, 'TF': 100, 'Color': 'black'},
                             {'Name': 'Payload', 'T0': 100, 'TF': 200, 'Color': 'red'},
-                            {'Name': 'Downlink', 'T0': 200, 'TF': 300, 'Color': 'green'},
+                            {'Name': 'Downlink', 'T0': 200, 'TF': 300, 'Color': 'blue'},
                             {'Name': 'Payload', 'T0': 300, 'TF': 400, 'Color': 'red'},
-                            {'Name': 'Downlink', 'T0': 400, 'TF': 500, 'Color': 'green'},
+                            {'Name': 'Downlink', 'T0': 400, 'TF': 500, 'Color': 'blue'},
                             {'Name': 'Payload', 'T0': 500, 'TF': 600, 'Color': 'red'},
-                            {'Name': 'Eclipse', 'T0': 600, 'TF': 700, 'Color': 'yellow'}]
+                            {'Name': 'Eclipse', 'T0': 600, 'TF': 700, 'Color': 'black'}]
     
 #
 n = len(activity_profile)
@@ -101,9 +101,7 @@ for i in range(0,n):
 fig.update_shapes(dict(xref='x', yref='y'))
 fig.update_layout(title_text="Activity Profile", title_font_size=30, yaxis_title=" ",xaxis_title= " Elapsed Time (minutes)",title_xanchor='center', title_y= 0.9, title_x=0.5)
 #
-fig2 = go.Figure(fig) 
-#    
-#viewer = jupyterlab_dash.AppViewer()
+fig2 = go.Figure(fig)
 #
 # external JavaScript files
 external_scripts = [
@@ -159,16 +157,16 @@ app.layout = html.Div(className='row', children=[
             [
         dbc.Button('Generate Activity Profile', id='button',n_clicks=0,style={'width': '200px', 'padding': '0px 0% 0px 0%'}),
         dcc.Upload( id='upload-modes',multiple=False,
-        children= ([html.Button('Upload Mode csv',style={'BackgroundColor':'white','width': '200px', 'padding': '0px 0% 0px 0%'})]))],style={'width': '200px', 'padding': '0px 0% 0px 8%'} ),
+        children= ([html.Button('Upload Mode CSV File',style={'BackgroundColor':'white','width': '200px', 'padding': '0px 0% 0px 0%'})]))],style={'width': '200px', 'padding': '0px 0% 0px 8%'} ),
                     html.Div(
             [       
         dbc.Button('Generate Trajectory', id='button-trj',n_clicks=0,style={'width': '200px', 'padding': '0px 0% 0px 0%'}),
         dcc.Upload( id='upload-trj',multiple=False,
-        children= ([html.Button('Upload Trajectory OEM File', style={'width': '200px', 'padding': '0px 0% 0px 0%'})]))],style={'width': '200px', 'padding': '0px 0% 0px 9%'} ),      
+        children= ([html.Button('Upload Trajectory CSV File', style={'width': '200px', 'padding': '0px 0% 0px 0%'})]))],style={'width': '200px', 'padding': '0px 0% 0px 9%'} ),
         html.Div(
             [
         dbc.Button('Automatic Trajectory', id='button-trj-auto',n_clicks=0,style={'width': '200px', 'padding': '0px 0% 0px 0%'}),
-        dbc.Button('Automatic Modes',id='button-mode-auto', n_clicks=0,color="light", style={'width': '200px', 'padding': '0px 0% 0px 0%'})],style={'width': '200px', 'padding': '0px 0% 0px 10%'} ),
+        dbc.Button('Automatic Activity Profile',id='button-mode-auto', n_clicks=0,color="light", style={'width': '200px', 'padding': '0px 0% 0px 0%'})],style={'width': '200px', 'padding': '0px 0% 0px 10%'} ),
         html.Div(
             [
         dbc.Button('Generate VTS Files', id='button-vts',n_clicks=0,style={'width': '200px', 'padding': '0px 0% 0px 0%'}), 

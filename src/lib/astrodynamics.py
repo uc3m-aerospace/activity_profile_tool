@@ -454,11 +454,3 @@ def ecef2eci(R_ECEF,time):
     #
         
     return R_ECI
-
-
-
-
-
-
-
-
