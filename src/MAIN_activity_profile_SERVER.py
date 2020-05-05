@@ -934,5 +934,5 @@ if __name__ == '__main__':
     tcp = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     tcp.bind(('', 0))
     addr, port2 = tcp.getsockname()
-    Timer(1, open_browser(port2)).start();
+    Timer(1, open_browser, args={port2,}).start();
     app.run_server(debug=False,port=port2)
