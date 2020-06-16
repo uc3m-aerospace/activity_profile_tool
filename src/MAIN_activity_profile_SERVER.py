@@ -1,9 +1,6 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[ ]:
-
-
 import sys
 sys.path.insert(1, './lib/')
 sys.path.insert(1, './test/outputs')
@@ -933,6 +930,7 @@ if __name__ == '__main__':
 
     tcp = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     tcp.bind(('', 0))
-    addr, port2 = tcp.getsockname()
-    Timer(1, open_browser, args={port2,}).start();
-    app.run_server(debug=False,port=port2)
+    port = tcp.getsockname()[1]
+    tcp.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    Timer(1, open_browser, args={port,}).start();
+    app.run_server(host='localhost',port=port, debug=False)
